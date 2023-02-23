@@ -22,6 +22,10 @@ with app.app_context():
 @app.route('/messages', methods=['POST', 'GET'])
 def handle_messages():
     if request.method == 'POST':
+        auth_token = request.headers.get('Authorization')
+        if auth_token != 'secret_token':
+            return jsonify({'message': 'Unauthorized'}), 401
+
         # get title and body from request body
         title = request.json['title']
         body = request.json['body']
