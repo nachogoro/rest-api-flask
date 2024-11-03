@@ -1,6 +1,8 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request
+from flask_restx import Api, Resource
 
 app = Flask(__name__)
+api = Api(app)
 
 # In-memory storage for demonstration purposes
 # Not thread-safe or process-safe!
@@ -37,15 +39,15 @@ books = [
     {"id": 30, "title": "The Catcher of Tales", "author": "Leo Tolstoy"}
 ]
 
-@app.route('/books', methods=['GET', 'POST'])
-def books_handler():
-    if request.method == 'GET':
-        return jsonify(books)
+@api.route('/books')
+class BookList(Resource):
+    def get(self):
+        return books
 
-    if request.method == 'POST':
-        new_book = request.get_json()
+    def post(self):
+        new_book = request.json
         if not new_book.get('title') or not new_book.get('author'):
-            return jsonify({"error": "Missing required book fields (title, author)"}), 400
+            return {"error": "Missing required book fields (title, author)"}, 400
 
         # Assign a new unique ID to the new book
         new_id = max(book['id'] for book in books) + 1 if books else 1
@@ -53,7 +55,7 @@ def books_handler():
 
         # Add the new book to the in-memory list
         books.append(new_book)
-        return jsonify(new_book), 201
+        return new_book, 201
 
 if __name__ == '__main__':
     app.run(debug=True)
