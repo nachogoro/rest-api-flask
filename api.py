@@ -1,5 +1,6 @@
 from flask import Flask, request
 from flask_restx import Api, Resource
+from functools import wraps
 
 app = Flask(__name__)
 api = Api(app)
@@ -39,6 +40,19 @@ books = [
     {"id": 30, "title": "The Catcher of Tales", "author": "Leo Tolstoy"}
 ]
 
+# Sample bearer token for demonstration
+VALID_TOKEN = "Bearer mysecrettoken"
+
+# Decorator for authentication
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or auth_header != VALID_TOKEN:
+            return {"error": "Authentication is required for this action, check your Authorization header"}, 401
+        return f(*args, **kwargs)
+    return decorated
+
 @api.route('/books')
 class BookList(Resource):
     def get(self):
@@ -67,6 +81,7 @@ class BookList(Resource):
 
         return filtered_books
 
+    @token_required
     def post(self):
         new_book = request.json
         if not new_book.get('title') or not new_book.get('author'):
@@ -89,6 +104,7 @@ class Book(Resource):
             return {"error": "Book not found"}, 404
         return book
 
+    @token_required
     def put(self, book_id):
         book = next((book for book in books if book['id'] == book_id), None)
         if not book:
@@ -99,6 +115,7 @@ class Book(Resource):
         book['author'] = updated_data.get('author', book['author'])
         return book
 
+    @token_required
     def delete(self, book_id):
         global books
         books = [book for book in books if book['id'] != book_id]
