@@ -2,6 +2,7 @@ from flask import Flask, request
 from flask_restx import Api, Resource
 from flask_sqlalchemy import SQLAlchemy
 from functools import wraps
+import math
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///books.db'
@@ -35,6 +36,8 @@ class BookList(Resource):
         title_filter = request.args.get('title')
         author_filter = request.args.get('author')
         sort_by = request.args.get('sort', '').strip()
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 5, type=int)
 
         query = BookModel.query
 
@@ -63,8 +66,19 @@ class BookList(Resource):
             if sort_fields:
                 query = query.order_by(*sort_fields)
 
-        books = query.all()
-        return [{"id": book.id, "title": book.title, "author": book.author} for book in books]
+        # Pagination
+        total_books = query.count()
+        books = query.offset((page - 1) * per_page).limit(per_page).all()
+        total_pages = math.ceil(total_books / per_page)
+
+        result = [{"id": book.id, "title": book.title, "author": book.author} for book in books]
+        return {
+            "page": page,
+            "per_page": per_page,
+            "total_pages": total_pages,
+            "total_books": total_books,
+            "books": result
+        }
 
     @token_required
     def post(self):
