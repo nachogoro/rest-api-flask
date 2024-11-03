@@ -57,5 +57,29 @@ class BookList(Resource):
         books.append(new_book)
         return new_book, 201
 
+
+@api.route('/books/<int:book_id>')
+class Book(Resource):
+    def get(self, book_id):
+        book = next((book for book in books if book['id'] == book_id), None)
+        if not book:
+            return {"error": "Book not found"}, 404
+        return book
+
+    def put(self, book_id):
+        book = next((book for book in books if book['id'] == book_id), None)
+        if not book:
+            return {"error": "Book not found"}, 404
+
+        updated_data = request.json
+        book['title'] = updated_data.get('title', book['title'])
+        book['author'] = updated_data.get('author', book['author'])
+        return book
+
+    def delete(self, book_id):
+        global books
+        books = [book for book in books if book['id'] != book_id]
+        return '', 204
+
 if __name__ == '__main__':
     app.run(debug=True)
