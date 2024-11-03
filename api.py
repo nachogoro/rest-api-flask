@@ -42,7 +42,30 @@ books = [
 @api.route('/books')
 class BookList(Resource):
     def get(self):
-        return books
+        title_filter = request.args.get('title')
+        author_filter = request.args.get('author')
+        sort_by = request.args.get('sort', '').strip()
+
+        filtered_books = books
+
+        # Filter by title if provided
+        if title_filter:
+            filtered_books = [book for book in filtered_books if title_filter.lower() in book['title'].lower()]
+
+        # Filter by author if provided
+        if author_filter:
+            filtered_books = [book for book in filtered_books if author_filter.lower() in book['author'].lower()]
+
+        # Sort if sort_by is provided
+        if sort_by:
+            sort_keys = sort_by.split(',')
+            for key in reversed(sort_keys):  # Reverse to apply primary sorting last
+                reverse = key.startswith('-')
+                field = key.lstrip('+-')
+                if field in ['title', 'author']:
+                    filtered_books = sorted(filtered_books, key=lambda x: x[field].lower(), reverse=reverse)
+
+        return filtered_books
 
     def post(self):
         new_book = request.json
