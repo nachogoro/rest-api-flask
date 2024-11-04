@@ -23,7 +23,8 @@ authorizations = {
     }
 }
 
-api = Api(app, authorizations=authorizations, security='BearerAuth')
+api = Api(app, authorizations=authorizations, security='BearerAuth', doc='/api/v1')
+v1 = api.namespace('api/v1', description='Version 1 of the API')
 
 # API model of a book in a response
 book_model = api.model('Book', {
@@ -109,7 +110,7 @@ def token_required(f):
     return decorated
 
 
-@api.route('/books')
+@v1.route('/books')
 class BookList(Resource):
     @api.doc(
         description="Retrieve a list of books with optional filters and pagination.",
@@ -195,7 +196,7 @@ class BookList(Resource):
         return {"id": new_book.id, "title": new_book.title, "author": new_book.author}, 201
 
 
-@api.route('/books/<int:book_id>')
+@v1.route('/books/<int:book_id>')
 @api.doc(params={'book_id': 'The ID of the book to retrieve or modify.'})
 class Book(Resource):
     @api.doc(
@@ -254,7 +255,7 @@ class Book(Resource):
         return '', 204
 
 
-@api.route('/books/stream')
+@v1.route('/books/stream')
 class BookStream(Resource):
     @api.doc(
         description="Stream new books in real-time as they are added to the database. Each line "
