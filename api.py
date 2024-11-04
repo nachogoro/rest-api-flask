@@ -1,4 +1,6 @@
-from flask import Flask, request
+import time
+
+from flask import Flask, request, Response
 from flask_restx import Api, Resource
 from flask_sqlalchemy import SQLAlchemy
 from functools import wraps
@@ -119,6 +121,23 @@ class Book(Resource):
         db.session.delete(book)
         db.session.commit()
         return '', 204
+
+@api.route('/books/stream')
+class BookStream(Resource):
+    def get(self):
+        def generate():
+            with app.app_context():
+                last_book_id = 0
+                while True:
+                    new_books = BookModel.query.filter(BookModel.id > last_book_id).order_by(
+                        BookModel.id).all()
+                    for book in new_books:
+                        last_book_id = book.id
+                        yield f'{{"id": {book.id}, "title": "{book.title}", "author": "{book.author}"}}\n'
+                    time.sleep(2)
+
+        return Response(generate(), mimetype='application/x-ndjson')
+
 
 if __name__ == '__main__':
     with app.app_context():
