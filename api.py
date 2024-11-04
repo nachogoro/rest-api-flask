@@ -13,14 +13,17 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 api = Api(app)
 
+
 # Database model for books
 class BookModel(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(100), nullable=False)
     author = db.Column(db.String(100), nullable=False)
 
+
 # Sample bearer token for demonstration
 VALID_TOKEN = "Bearer mysecrettoken"
+
 
 # Decorator for authentication
 def token_required(f):
@@ -28,9 +31,11 @@ def token_required(f):
     def decorated(*args, **kwargs):
         auth_header = request.headers.get('Authorization')
         if not auth_header or auth_header != VALID_TOKEN:
-            return {"error": "Authentication is required for this action, check your Authorization header"}, 401
+            return {"error": "Invalid token, check your Authorization header"}, 401
         return f(*args, **kwargs)
+
     return decorated
+
 
 @api.route('/books')
 class BookList(Resource):
@@ -93,6 +98,7 @@ class BookList(Resource):
         db.session.commit()
         return {"id": new_book.id, "title": new_book.title, "author": new_book.author}, 201
 
+
 @api.route('/books/<int:book_id>')
 class Book(Resource):
     def get(self, book_id):
@@ -121,6 +127,7 @@ class Book(Resource):
         db.session.delete(book)
         db.session.commit()
         return '', 204
+
 
 @api.route('/books/stream')
 class BookStream(Resource):
