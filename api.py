@@ -1,10 +1,12 @@
+import math
 import time
+from collections import defaultdict
+from datetime import datetime, timedelta
 
-from flask import Flask, request, Response
+from flask import Flask, request, Response, jsonify, make_response
 from flask_restx import Api, Resource
 from flask_sqlalchemy import SQLAlchemy
 from functools import wraps
-import math
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///books.db'
@@ -24,6 +26,8 @@ class BookModel(db.Model):
 # Sample bearer token for demonstration
 VALID_TOKEN = "Bearer mysecrettoken"
 
+request_counts = defaultdict(list)
+
 
 # Decorator for authentication
 def token_required(f):
@@ -32,7 +36,41 @@ def token_required(f):
         auth_header = request.headers.get('Authorization')
         if not auth_header or auth_header != VALID_TOKEN:
             return {"error": "Invalid token, check your Authorization header"}, 401
-        return f(*args, **kwargs)
+
+        # Rate limiting: allow 100 requests per token per minute
+        max_requests = 100
+        sliding_window_width = timedelta(seconds=60)
+        current_time = datetime.now()
+
+        # Timestamps of processed requests for this token in the last window
+        request_times = [t for t in request_counts[auth_header]
+                         if current_time - t < sliding_window_width]
+
+        remaining_requests = max(max_requests - len(request_times), 0)
+        since_oldest_request = (current_time - (request_times[0] if request_times else current_time))
+        reset_delta = sliding_window_width - since_oldest_request
+        request_counts[auth_header] = request_times
+
+        if remaining_requests <= 0:
+            response = jsonify({"error": "Rate limit exceeded, wait for reset"})
+            response.status_code = 429
+            response.headers['RateLimit-Limit'] = str(max_requests)
+            response.headers['RateLimit-Remaining'] = '0'
+            response.headers['RateLimit-Reset'] = str(reset_delta.total_seconds())
+            return response
+
+        request_counts[auth_header].append(current_time)
+        response = f(*args, **kwargs)
+
+        # Ensure response is a Response object
+        if not isinstance(response, Response):
+            response = make_response(response)
+
+        response.headers['RateLimit-Limit'] = str(max_requests)
+        response.headers['RateLimit-Remaining'] = str(remaining_requests - 1)
+        response.headers['RateLimit-Reset'] = str(reset_delta.total_seconds())
+
+        return response
 
     return decorated
 
