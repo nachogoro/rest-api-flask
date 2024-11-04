@@ -42,14 +42,18 @@ def token_required(f):
         sliding_window_width = timedelta(seconds=60)
         current_time = datetime.now()
 
-        # Timestamps of processed requests for this token in the last window
-        request_times = [t for t in request_counts[auth_header]
-                         if current_time - t < sliding_window_width]
+        with request_lock:
+            # Timestamps of processed requests for this token in the last window
+            request_times = [t for t in request_counts[auth_header]
+                             if current_time - t < sliding_window_width]
 
-        remaining_requests = max(max_requests - len(request_times), 0)
-        since_oldest_request = (current_time - (request_times[0] if request_times else current_time))
-        reset_delta = sliding_window_width - since_oldest_request
-        request_counts[auth_header] = request_times
+            remaining_requests = max(max_requests - len(request_times), 0)
+            since_oldest_request = (current_time - (request_times[0] if request_times else current_time))
+            reset_delta = sliding_window_width - since_oldest_request
+            if remaining_requests > 0:
+                # If the request will be processed add its timestamp to the list of handled requests
+                request_times.append(current_time)
+            request_counts[auth_header] = request_times
 
         if remaining_requests <= 0:
             response = jsonify({"error": "Rate limit exceeded, wait for reset"})
@@ -59,7 +63,6 @@ def token_required(f):
             response.headers['RateLimit-Reset'] = str(reset_delta.total_seconds())
             return response
 
-        request_counts[auth_header].append(current_time)
         response = f(*args, **kwargs)
 
         # Ensure response is a Response object
