@@ -1,4 +1,5 @@
-from api import app, db, BookModel
+from biblioapp import app, db
+from biblioapp.models import BookModel
 
 def populate_books():
     books = [
